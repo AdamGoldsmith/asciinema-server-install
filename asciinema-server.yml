@@ -131,6 +131,19 @@
         build: no
         stopped: yes
 
+    - name: Ensure asciinema config directory structure exists
+      vars:
+        conf_data:
+          - path: ~/.config
+            mode: "0755"
+          - path: ~/.config/asciinema
+            mode: "0775"
+      ansible.builtin.file:
+        path: "{{ item['path'] }}"
+        state: directory
+        mode: "{{ item['mode'] }}"
+      loop: "{{ conf_data }}"
+
     - name: Update asciinema config file
       ansible.builtin.copy:
         content: |
