@@ -5,4 +5,4 @@ jsondiff
 pyyaml
 asciinema
 docker
-docker-compose<2
+docker-compose==1.29.2
