@@ -22,6 +22,7 @@ The following preparation steps will create a python virtual environment to sati
     mkdir ~/venvs
     python3 -m venv ~/venvs/asciinema-server
     source ~/venvs/asciinema-server/bin/activate
+    pip install pip --upgrade
     pip install -r requirements.txt
     ```
 1. Update playbook variables in asciinema-server.yml as per [asciinema-server installation guide](https://github.com/asciinema/asciinema-server/wiki/Installation-guide)
