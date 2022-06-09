@@ -35,6 +35,11 @@
         mode: "0664"
         force: yes
 
+    - name: Pull latest asciinema docker image
+      community.docker.docker_image:
+        name: asciinema/asciinema-server
+        source: pull
+
     - name: Get secret key base
       # Cannot user docker-compose module to "run" a particular service
       ansible.builtin.command:
@@ -105,11 +110,6 @@
         dest: "{{project_dir }}/asciinema.conf"
         mode: "0664"
         lstrip_blocks: yes
-
-    - name: Pull latest asciinema docker image
-      community.docker.docker_image:
-        name: asciinema/asciinema-server
-        source: pull
 
     - name: Start PostgreSQL container first
       community.docker.docker_compose:
