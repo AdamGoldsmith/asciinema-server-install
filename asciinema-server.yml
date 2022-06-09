@@ -1,0 +1,142 @@
+---
+
+- name: Install self-hosted asciinema server
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    asciinema_host: localhost
+    project_dir: ~/asciinema-server
+    asciinema_http_port: 80
+    use_tls: False
+    secret_key_file: "{{ project_dir }}/secret_key_base"
+    asciinema_http_protocol: "{{ (use_tls | bool) | ternary('https', 'http') }}"
+    asciinema_port: "{{ (use_tls | bool) | ternary('443', asciinema_http_port) }}"
+
+  tasks:
+
+    - name: Create project directory
+      ansible.builtin.file:
+        path: "{{ project_dir }}"
+        state: directory
+        mode: "0775"
+
+    - name: Clone asciinema-server repo
+      ansible.builtin.git:
+        repo: "https://github.com/asciinema/asciinema-server.git"
+        dest: "{{ project_dir }}"
+        version: master
+        force: yes
+
+    - name: Create temporary docker compose env file
+      ansible.builtin.copy:
+        src: "{{ project_dir }}/.env.production.sample"
+        dest: "{{ project_dir }}/.env.production"
+        mode: "0664"
+        force: yes
+
+    - name: Get secret key base
+      # Cannot user docker-compose module to "run" a particular service
+      ansible.builtin.command:
+        cmd: "docker-compose -f {{ project_dir }}/docker-compose.yml run --rm phoenix gen_secret"
+        creates: "{{ secret_key_file }}"
+      register: base_secret
+
+    - name: Block - only update secret key base file if new secret retrieved
+      block:
+
+        - name: Remove temporary phoenix service
+          community.docker.docker_compose:
+            project_src: "{{ project_dir }}"
+            services: phoenix
+            state: absent
+
+        - name: Write secret key base to file
+          ansible.builtin.copy:
+            content: "{{ base_secret['stdout'] }}"
+            dest: "{{ secret_key_file }}"
+            mode: "0640"
+
+      when: base_secret is changed
+
+    - name: Read in secret from file
+      ansible.builtin.set_fact:
+        asciinema_secret_key: "{{ lookup('file', secret_key_file) }}"
+        
+    - name: Create live docker compose env file
+      ansible.builtin.template:
+        src: env.production.j2
+        dest: "{{project_dir }}/.env.production"
+        mode: "0664"
+
+    - name: Block - create TLS certificates
+      block:
+
+        - name: Create certificates directory
+          ansible.builtin.file:
+            path: "{{ project_dir }}/certs"
+            state: directory
+            mode: "0775"
+
+        - name: Create private key
+          community.crypto.openssl_privatekey:
+            path: "{{ project_dir }}/certs/{{ asciinema_host }}.key"
+            type: RSA
+            size: 4096
+
+        - name: Create self-signed certificate
+          community.crypto.x509_certificate:
+            path: "{{ project_dir }}/certs/{{ asciinema_host }}.crt"
+            privatekey_path: "{{ project_dir }}/certs/{{ asciinema_host }}.key"
+            provider: selfsigned
+
+      when: use_tls | bool
+
+    - name: Update docker-compose.yml file
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: "{{project_dir }}/docker-compose.yml"
+        mode: "0664"
+        lstrip_blocks: yes
+      
+    - name: Update asciinema.conf file
+      ansible.builtin.template:
+        src: asciinema.conf.j2
+        dest: "{{project_dir }}/asciinema.conf"
+        mode: "0664"
+        lstrip_blocks: yes
+
+    - name: Pull latest asciinema docker image
+      community.docker.docker_image:
+        name: asciinema/asciinema-server
+        source: pull
+
+    - name: Start PostgreSQL container first
+      community.docker.docker_compose:
+        project_src: "{{ project_dir }}"
+        services: postgres
+        build: no
+
+    - name: Start all containers
+      community.docker.docker_compose:
+        project_src: "{{ project_dir }}"
+        build: no
+
+    - name: Stop all asciinema services
+      tags:
+        - never
+        - stop
+      community.docker.docker_compose:
+        project_src: "{{ project_dir }}"
+        build: no
+        stopped: yes
+
+    - name: Update asciinema config file
+      ansible.builtin.copy:
+        content: |
+          [api]
+          url = http://{{ asciinema_host }}
+        dest: ~/.config/asciinema/config
+        mode: "0664"
+        backup: yes
+

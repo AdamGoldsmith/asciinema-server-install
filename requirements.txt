@@ -1,0 +1,8 @@
+pip
+ansible<3
+ansible-lint
+jsondiff
+pyyaml
+asciinema
+docker
+docker-compose<2

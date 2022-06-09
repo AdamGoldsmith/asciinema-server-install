@@ -1,0 +1,54 @@
+version: '2'
+
+services:
+  postgres:
+    image: postgres:12-alpine
+    environment:
+      # POSTGRES_DB: "db"
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+    container_name: asciinema_postgres
+    restart: unless-stopped
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
+    ### See https://hub.docker.com/_/postgres/ for more
+    ### configuration options for this image.
+
+  smtp:
+    image: namshi/smtp
+    container_name: asciinema_smtp
+    restart: unless-stopped
+    env_file: .env.production
+    ### See https://github.com/namshi/docker-smtp for more SMTP configuration
+    ### options for this image.
+
+  nginx:
+    image: nginx:1.15-alpine
+    container_name: asciinema_nginx
+    restart: unless-stopped
+    links:
+      - phoenix
+    ports:
+      - "80:80"
+      {% if use_tls | bool %}
+      - "443:443"
+      {% endif %}
+    volumes:
+      - ./docker/nginx/asciinema.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./volumes/cache:/cache
+      {% if use_tls | bool %}
+      - ./certs:/app/priv/certs
+      {% endif %}
+    ### See https://hub.docker.com/_/nginx/ for more configuration options for
+    ### this image.
+
+  phoenix:
+    image: asciinema/asciinema-server
+    container_name: asciinema_phoenix
+    restart: unless-stopped
+    links:
+      - postgres
+      - smtp
+    env_file: .env.production
+    volumes:
+      - ./volumes/uploads:/opt/app/uploads
+
