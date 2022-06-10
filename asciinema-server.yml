@@ -58,7 +58,7 @@
 
         - name: Write secret key base to file
           ansible.builtin.copy:
-            content: "{{ base_secret['stdout'] }}"
+            content: "{{ base_secret['stdout_lines'][-1:] | last }}"
             dest: "{{ secret_key_file }}"
             mode: "0640"
 
