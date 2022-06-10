@@ -28,7 +28,7 @@ services:
     links:
       - phoenix
     ports:
-      - "80:80"
+      - "{{ asciinema_port }}:80"
       {% if use_tls | bool %}
       - "443:443"
       {% endif %}
