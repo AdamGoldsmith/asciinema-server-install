@@ -39,6 +39,10 @@ The following preparation steps will create a python virtual environment to sati
 1. Point browser at `asciinema_host:asciinema_http_port` to test
 
 
+## Text-based installation walkthrough (rendered by Asciinema [of course!])
+
+<a href="https://asciinema.org/a/a4ePXPU3KXZWtO5HdveIrbteb?autoplay=1"><img src="https://asciinema.org/a/a4ePXPU3KXZWtO5HdveIrbteb.svg" title="Installation video" alt="Installation video" width="640"/></a>
+
 ## Known issues
 
 1. TLS not working (never does!)
